@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 const Env = z.object({
@@ -10,6 +11,10 @@ const Env = z.object({
   // 32 bytes, base64. Wraps the per-file keys that encrypt every stored original.
   STORAGE_MASTER_KEY: z.string().default("ZGV2LW9ubHktbWFzdGVyLWtleS1jaGFuZ2UtbWUhISE="),
   STORAGE_DIR: z.string().default("./data/files"),
+  // "disk" writes under STORAGE_DIR; "db" keeps encrypted bodies in Postgres (for hosts without a persistent disk).
+  STORAGE_BACKEND: z.enum(["disk", "db"]).default("disk"),
+  // Directory of the built web app to serve from this process (same origin, no CORS). Empty: API only.
+  WEB_DIST: z.string().default(""),
 
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_MODEL: z.string().default("claude-opus-5-5"),
@@ -26,6 +31,8 @@ const Env = z.object({
 
   // MPass (Moldova e-government identity, SAML 2.0). "mock" serves a local login form for development.
   MPASS_MODE: z.enum(["mock", "saml"]).default("mock"),
+  // Required to use the mock MPass page outside development, so strangers can't sign in as doctors on a hosted pilot.
+  MPASS_MOCK_ACCESS_CODE: z.string().optional(),
   MPASS_ENTRY_POINT: z.string().optional(),
   MPASS_LOGOUT_URL: z.string().optional(),
   MPASS_ISSUER: z.string().default("meddata"),
@@ -46,15 +53,24 @@ const Env = z.object({
 export type Config = z.infer<typeof Env>;
 
 export function loadConfig(overrides: Partial<Record<keyof Config, unknown>> = {}): Config {
-  const cfg = Env.parse({ ...process.env, ...overrides });
+  const env: Record<string, unknown> = { ...process.env, ...overrides };
+  // Render sets RENDER_EXTERNAL_URL to the service's public address; use it when the URLs aren't given explicitly.
+  const external = process.env.RENDER_EXTERNAL_URL;
+  if (external && !env.PUBLIC_URL) env.PUBLIC_URL = external;
+  if (external && !env.API_URL) env.API_URL = external;
+  const cfg = Env.parse(env);
   if (cfg.NODE_ENV === "production") {
-    if (cfg.MPASS_MODE === "mock") throw new Error("MPASS_MODE=mock is not allowed in production");
+    if (cfg.MPASS_MODE === "mock" && (cfg.MPASS_MOCK_ACCESS_CODE ?? "").length < 8)
+      throw new Error("MPASS_MODE=mock in production requires MPASS_MOCK_ACCESS_CODE (8+ characters) to protect the stand-in sign-in page");
     if (cfg.EXTRACTOR === "demo") throw new Error("EXTRACTOR=demo is not allowed in production");
     if (cfg.SESSION_SECRET.startsWith("dev-only")) throw new Error("Set SESSION_SECRET in production");
     if (cfg.STORAGE_MASTER_KEY === Env.shape.STORAGE_MASTER_KEY.parse(undefined))
       throw new Error("Set STORAGE_MASTER_KEY in production");
   }
-  if (Buffer.from(cfg.STORAGE_MASTER_KEY, "base64").length !== 32)
-    throw new Error("STORAGE_MASTER_KEY must be 32 bytes, base64-encoded");
+  // Accept either 32 base64 bytes or any long passphrase (hosts' secret generators produce the latter).
+  if (Buffer.from(cfg.STORAGE_MASTER_KEY, "base64").length !== 32) {
+    if (cfg.STORAGE_MASTER_KEY.length < 32) throw new Error("STORAGE_MASTER_KEY must be 32 base64 bytes or a passphrase of at least 32 characters");
+    cfg.STORAGE_MASTER_KEY = createHash("sha256").update(cfg.STORAGE_MASTER_KEY).digest("base64");
+  }
   return cfg;
 }

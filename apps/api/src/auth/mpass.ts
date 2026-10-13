@@ -4,6 +4,7 @@ import { z } from "zod";
 import { HttpError, type Ctx } from "../context.js";
 import { one } from "../db.js";
 import { audit } from "../audit.js";
+import { safeEqual } from "../crypto.js";
 import type { Sessions } from "./session.js";
 
 export interface MPassIdentity {
@@ -18,7 +19,7 @@ const IDNP = z.string().regex(/^\d{13}$/, "IDNP has 13 digits");
 /**
  * Doctor sign-in via MPass, Moldova's government identity service (SAML 2.0).
  * MPASS_MODE=mock serves a local form so the flow can be developed without
- * MPass credentials; it is refused when NODE_ENV=production.
+ * MPass credentials; in production it additionally requires MPASS_MOCK_ACCESS_CODE.
  */
 export function mpassRoutes(app: FastifyInstance, ctx: Ctx, sessions: Sessions) {
   const { cfg, db } = ctx;
@@ -51,18 +52,23 @@ export function mpassRoutes(app: FastifyInstance, ctx: Ctx, sessions: Sessions) 
   }
 
   if (cfg.MPASS_MODE === "mock") {
+    const accessCode = cfg.MPASS_MOCK_ACCESS_CODE;
     app.get("/auth/mpass/login", async (_req, reply) => reply.redirect("/auth/mpass/mock"));
     app.get("/auth/mpass/mock", async (_req, reply) =>
-      reply.type("text/html").send(`<!doctype html><meta charset="utf-8"><title>MPass (mock)</title>
+      reply.type("text/html").send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MPass (stand-in)</title>
 <style>body{font:16px system-ui;max-width:420px;margin:60px auto;padding:0 16px}input,button{display:block;width:100%;margin:8px 0;padding:10px;font:inherit}</style>
-<h2>MPass (development mock)</h2><p>This page stands in for MPass until MedData is registered with the e-Government Agency.</p>
+<h2>MPass (stand-in)</h2><p>This page stands in for MPass until MedData is registered with the e-Government Agency.</p>
 <form method="post" action="/auth/mpass/mock">
 <input name="idnp" placeholder="IDNP (13 digits)" required pattern="\\d{13}">
 <input name="firstName" placeholder="First name"><input name="lastName" placeholder="Last name"><input name="email" placeholder="Email">
+${accessCode ? '<input name="accessCode" type="password" placeholder="Access code (ask the MedData team)" required>' : ""}
 <button>Sign in</button></form>`),
     );
-    app.post("/auth/mpass/mock", async (req, reply) => {
-      const b = z.object({ idnp: z.string(), firstName: z.string().optional(), lastName: z.string().optional(), email: z.string().optional() }).parse(req.body);
+    app.post("/auth/mpass/mock", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+      const b = z
+        .object({ idnp: z.string(), firstName: z.string().optional(), lastName: z.string().optional(), email: z.string().optional(), accessCode: z.string().optional() })
+        .parse(req.body);
+      if (accessCode && !safeEqual(b.accessCode ?? "", accessCode)) throw new HttpError(403, "wrong_access_code", "Wrong access code.");
       return signIn(reply, { ...b, email: b.email || undefined });
     });
     return;

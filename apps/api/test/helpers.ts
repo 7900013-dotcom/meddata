@@ -7,7 +7,7 @@ import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { createPool, migrate } from "../src/db.js";
 import { MemoryNotifier } from "../src/notify.js";
-import { EncryptedStorage } from "../src/storage.js";
+import { DiskBlobStore, EncryptedStorage } from "../src/storage.js";
 import type { Ctx } from "../src/context.js";
 import type { Extractor } from "../src/documents/extract.js";
 import type { Extraction } from "../src/documents/schema.js";
@@ -58,7 +58,7 @@ export async function setup(): Promise<TestEnv> {
   await migrate(db);
   const notifier = new MemoryNotifier();
   const extractor = new FakeExtractor();
-  const ctx: Ctx = { cfg, db, notifier, extractor, storage: new EncryptedStorage(cfg.STORAGE_DIR, cfg.STORAGE_MASTER_KEY) };
+  const ctx: Ctx = { cfg, db, notifier, extractor, storage: new EncryptedStorage(new DiskBlobStore(cfg.STORAGE_DIR), cfg.STORAGE_MASTER_KEY) };
   const app = await buildApp(ctx);
   return { ctx, app, notifier, extractor, close: async () => (await app.close(), await db.end()) };
 }

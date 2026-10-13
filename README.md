@@ -34,3 +34,17 @@ npm run dev:web                  # web app on http://localhost:5173
 npm test          # API tests against TEST_DATABASE_URL (default postgres://meddata:meddata@localhost:5432/meddata_test)
 npm run typecheck
 ```
+
+## Put it online (Render)
+
+The repo carries a `Dockerfile` and a `render.yaml`, so Render can run the whole app (API + web + Postgres) from one button:
+
+1. Sign up at https://render.com with the GitHub account that owns this repository.
+2. Open https://render.com/deploy?repo=https://github.com/7900013-dotcom/meddata and paste your `ANTHROPIC_API_KEY`. Every other secret is generated.
+3. When the first deploy finishes, open the service URL (something like `https://meddata.onrender.com`).
+
+Notes for a hosted pilot:
+- Files are stored encrypted inside Postgres (`STORAGE_BACKEND=db`), so the free plan, which has no persistent disk, works.
+- Doctor sign-in uses the stand-in MPass page, protected by `MPASS_MOCK_ACCESS_CODE` (visible in the Render dashboard under Environment). Give that code only to doctors you invite.
+- Sign-in codes are printed to the service logs until `EMAIL_TRANSPORT=smtp` / `SMS_TRANSPORT=http` are configured; for a pilot, read them under Logs in the Render dashboard.
+- Render's free database is deleted after 30 days unless upgraded, and the free web service sleeps when idle (the first request after a pause takes about a minute).
