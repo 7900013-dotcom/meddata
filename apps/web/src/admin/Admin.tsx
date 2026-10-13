@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { api, fmtDateTime, fullName } from "../api";
 import { useLoad } from "../hooks";
+import { DEMO } from "../demo";
+import { demo } from "../demo/shim";
 
 interface Pending {
   id: string;
@@ -34,7 +36,7 @@ export function Admin() {
               <strong>{fullName(d)}</strong>
               <span className="small muted">IDNP {d.idnp} · {d.email ?? "no email"} · submitted {fmtDateTime(d.submitted_at)}</span>
               <span className="small">Licence {d.license_number} · {d.specialty} · {d.institution}</span>
-              <a className="small" href={`/api/admin/certifications/${d.id}/license`} target="_blank" rel="noreferrer">Open licence file</a>
+              <a className="small" href={DEMO ? demo.licenseUrl(d.id) || undefined : `/api/admin/certifications/${d.id}/license`} target="_blank" rel="noreferrer">Open licence file</a>
               <input placeholder="Note (shown to the doctor if rejected)" value={notes[d.id] ?? ""} onChange={(e) => setNotes({ ...notes, [d.id]: e.target.value })} />
             </div>
             <div className="row">

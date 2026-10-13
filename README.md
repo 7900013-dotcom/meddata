@@ -48,3 +48,7 @@ Notes for a hosted pilot:
 - Doctor sign-in uses the stand-in MPass page, protected by `MPASS_MOCK_ACCESS_CODE` (visible in the Render dashboard under Environment). Give that code only to doctors you invite.
 - Sign-in codes are printed to the service logs until `EMAIL_TRANSPORT=smtp` / `SMS_TRANSPORT=http` are configured; for a pilot, read them under Logs in the Render dashboard.
 - Render's free database is deleted after 30 days unless upgraded, and the free web service sleeps when idle (the first request after a pause takes about a minute).
+
+## Browser-only demo
+
+`npm run build:demo -w apps/web` builds a self-contained version of the web app (`apps/web/dist-demo`) in which an in-browser stand-in for the API (`apps/web/src/demo/`) serves sample data from localStorage. It is for showing the product without a server; readings are samples, not real extractions. The hosted app never includes this code.

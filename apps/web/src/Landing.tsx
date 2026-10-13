@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "./api";
 import { useAuth } from "./auth";
+import { DEMO } from "./demo";
 
 export function Landing() {
   const { refresh } = useAuth();
@@ -69,7 +70,7 @@ export function Landing() {
         <section className="panel stack">
           <h2>I'm a doctor</h2>
           <p className="muted small">Sign in with MPass. After your licence is verified you can request access to a patient's records; the patient approves each request.</p>
-          <a className="btn gov" href="/auth/mpass/login">Sign in with MPass</a>
+          <a className="btn gov" href={DEMO ? "#/mpass" : "/auth/mpass/login"}>Sign in with MPass</a>
         </section>
       </div>
     </div>

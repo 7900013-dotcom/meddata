@@ -1,6 +1,12 @@
 import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, HashRouter, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { DEMO } from "./demo";
+import { DemoPanel } from "./demo/Panel";
+import { MPassMock } from "./demo/MPass";
+import { installDemo } from "./demo/shim";
+
+if (DEMO) installDemo();
 import "./styles.css";
 import { AuthProvider, useAuth } from "./auth";
 import type { Me } from "./api";
@@ -67,13 +73,15 @@ function Home() {
   return me ? <Navigate to={NAV[me.role][0][0]} replace /> : <Landing />;
 }
 
+const Router = DEMO ? HashRouter : BrowserRouter;
+
 const p = (el: ReactNode) => <Shell role="patient">{el}</Shell>;
 const d = (el: ReactNode) => <Shell role="doctor">{el}</Shell>;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
-      <BrowserRouter>
+      <Router>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/records" element={p(<Records />)} />
@@ -87,9 +95,11 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/doctor/request" element={d(<DoctorRequest />)} />
           <Route path="/doctor/patients/:pid" element={d(<DoctorPatient />)} />
           <Route path="/admin" element={<Shell role="admin"><Admin /></Shell>} />
+          {DEMO && <Route path="/mpass" element={<MPassMock />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+        {DEMO && <DemoPanel />}
+      </Router>
     </AuthProvider>
   </StrictMode>,
 );
