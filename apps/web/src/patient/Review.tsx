@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, KIND_LABEL, type Extraction, type LabValue, type Medicine } from "../api";
 import { useLoad } from "../hooks";
+import { DEMO } from "../demo";
+import { demo } from "../demo/shim";
 
 type Check = { name: string; status: "matched" | "similar" | "not_found" | "register_not_loaded"; register_name?: string; suggestions?: string[] };
 interface Doc {
@@ -72,14 +74,14 @@ export function Review() {
   }
 
   async function discard() {
-    if (!confirm_("Delete this document and its original?")) return;
+    if (!DEMO && !confirm_("Delete this document and its original?")) return;
     await api.send("DELETE", `/api/documents/${id}`);
     nav("/inbox");
   }
 
   if (error) return <p className="alert error">{error}</p>;
   if (!doc) return null;
-  const original = `/api/documents/${id}/original`;
+  const original = DEMO ? demo.originalUrl(id!) : `/api/documents/${id}/original`;
   const unverified = checks.some((c) => c.status === "similar" || c.status === "not_found");
 
   return (

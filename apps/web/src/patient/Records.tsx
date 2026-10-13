@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { fmtDate, KIND_LABEL, type RecordRow } from "../api";
 import { useLoad } from "../hooks";
+import { DEMO } from "../demo";
 
 export function RecordList({ records, pdfBase }: { records: RecordRow[]; pdfBase: string }) {
   const byDate = new Map<string, RecordRow[]>();
@@ -11,7 +12,7 @@ export function RecordList({ records, pdfBase }: { records: RecordRow[]; pdfBase
         <section key={date}>
           <div className="datehead">
             <h3>{fmtDate(date)}</h3>
-            <a className="btn sm" href={`${pdfBase}/${date}/pdf`}>Download PDF</a>
+            <a className="btn sm" href={`${pdfBase}/${date}/pdf`} onClick={DEMO ? (e) => (e.preventDefault(), import("../demo/pdf").then((m) => m.downloadDatePdf(pdfBase, date))) : undefined}>Download PDF</a>
           </div>
           <div className="list">
             {rows.map((r) => (
