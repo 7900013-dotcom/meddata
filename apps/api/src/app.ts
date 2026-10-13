@@ -4,6 +4,9 @@ import multipart from "@fastify/multipart";
 import formbody from "@fastify/formbody";
 import rateLimit from "@fastify/rate-limit";
 import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { ZodError } from "zod";
 import { HttpError, type Ctx } from "./context.js";
 import { one } from "./db.js";
@@ -70,5 +73,14 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   documentRoutes(app, ctx);
   accessRoutes(app, ctx);
   mailRoutes(app, ctx);
+
+  // Single-process deploys: serve the built web app from the API, with history-API fallback for client routes.
+  if (ctx.cfg.WEB_DIST && existsSync(path.join(ctx.cfg.WEB_DIST, "index.html"))) {
+    await app.register(fastifyStatic, { root: path.resolve(ctx.cfg.WEB_DIST), wildcard: false });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith("/api/") || req.url.startsWith("/auth/")) return reply.status(404).send({ error: "not_found" });
+      return reply.sendFile("index.html");
+    });
+  }
   return app;
 }
